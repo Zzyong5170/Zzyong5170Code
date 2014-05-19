@@ -1,0 +1,75 @@
+在tomcat6.0版本中，context元素已经从server.xml文件中独立出来了，放在了一个context.xml文件中。
+因为server.xml是不可动态重加载的资源，服务器一旦启动了以后，要修改文件，就得重启服务器才能重新加载。
+而context.xml文件则不然，tomcat服务器会定时去扫描这个文件。一旦发现文件被修改（时间戳改变了），就会自动重新加载
+这个文件，而不需要重新启动服务器。
+context元素的可用范围是可控的，我们可以根据需要为context元素定义不同级别的可用范围。
+
+配置方式：
+	1.
+		1).在conf下的context.xml文件中，添加连接池配置：
+		<Resource 
+			name="jndi名称(例如jdbc/demo)"
+			auth="Container" -- 认证方式，一般为Container
+			type="javax.sql.DataSource" -- 数据源类型，使用标准的javax.sql.DataSource
+			driverClassName="oracle.jdbc.driver.OracleDriver / com.mysql.jdbc.Driver" -- jdbc driver
+			url="jdbc:oracle:thin:@localhost:1521:dbName / jdbc:mysql://localhost:3306/dbName" -- 数据库url
+			username="用户名" -- 数据库用户名
+			password="密码" -- 数据库用户密码
+			maxActive="" -- 表示数据库中最大的数据库连接数
+			maxIdle=""	-- 表示最大的空闲连接数
+			maxWait=""  -- 当连接池的数据库连接已经被占用的时候，最大等待时间
+			logAbandoned=	-- 表示被丢弃的数据库连接是否做记录，以便跟踪
+		/>
+		2).在web应用下的web.xml中配置：
+		<resource-ref>
+			<description></description>
+			<res-ref-name>tomcat中配置的数据源名字<res-ref-name>
+			<res-type>javax.sql.DataSource</res-type>
+			<res-auth>Container</res-auth>
+		</resource-ref>
+		<!-- 在tomcat5.5以后的版本中可以不配置以上的web.xml，但建议写上 -->
+		
+	2.
+		在server.xml中配置：
+		1).在<GlobalNamingResources>和</GlobalNamingResources>标签之间加入下面的内容：
+		<Resource
+			...
+		/>
+		2).在context.xml中加入以下的内容：
+		<ResourceLink name="" global="上面定义的数据源的名字"  type="javax.sql.DataSource"/>
+		3).在web.xml中加入以下内容:
+		<resource-ref>
+			...
+		</resource-ref>
+		
+	3.
+		1).在web项目的/WebRoot/META-INF/目录下创建一个context.xml文件，内容如下：
+		<?xml version="1.0" encoding="utf-8"?>
+		<Context>
+			<Resource
+				...
+			/>
+		</Context>
+		2).在web.xml中配置如下：
+		<resource-ref>
+			...
+		</resource-ref>
+
+调用方式：
+	1.
+		在程序中调用：
+		Context initContext = new InitContext();
+		Context context = (Context)initContext.lookup("java:/comp/env");
+		DataSource ds = (DataSource)context.lookup("jdbc/demo");
+		// 操作数据库
+		Connection connection = ds.getConnection();
+		
+	2.
+		在spring中调用:
+		<bean id="dataSource" class="org.springframework.jndi.JndiObjectFactoryBean">
+    	<property name="jndiName">
+    		<value>java:comp/env/jdbc/demo</value>
+    	</property>
+    </bean>
+		
+		
